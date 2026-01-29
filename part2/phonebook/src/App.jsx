@@ -1,101 +1,90 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
-import "./App.css";
-const Filter = ({ filter, handleFilterChange }) => (
-  <div>
-    filter shown with{" "}
-    <input value={filter} onChange={handleFilterChange} />
-  </div>
-);
-
-const PersonForm = ({
-  addPerson,
-  newName,
-  handleNameChange,
-  newNumber,
-  handleNumberChange
-}) => (
-  <form onSubmit={addPerson}>
-    <div>
-      name: <input value={newName} onChange={handleNameChange} />
-    </div>
-    <div>
-      number: <input value={newNumber} onChange={handleNumberChange} />
-    </div>
-    <div>
-      <button type="submit">add</button>
-    </div>
-  </form>
-);
-
-const Persons = ({ persons }) => (
-  <div>
-    {persons.map(person => (
-      <p key={person.id}>
-        {person.name} {person.number}
-      </p>
-    ))}
-  </div>
-);
+import { useState, useEffect } from "react"
+import personService from "./services/persons"
+import Filter from "./components/Filter"
+import PersonForm from "./components/PersonForm"
+import Persons from "./components/Persons"
+import Notification from "./components/Notification"
 
 const App = () => {
-  const [newName, setNewName] = useState("");
-  const [newNumber, setNewNumber] = useState("");
+  const [persons, setPersons] = useState([])
+  const [newName, setNewName] = useState("")
+  const [newNumber, setNewNumber] = useState("")
+  const [filter, setFilter] = useState("")
+  const [message, setMessage] = useState(null)
+  const [messageType, setMessageType] = useState("success")
 
-  const [filter, setFilter] = useState("");
-  
-  const [persons, setPersons] = useState([
-    { name: 'Arto Hellas', number: '040-123456', id: 1 },
-    { name: 'Ada Lovelace', number: '39-44-5323523', id: 2 },
-    { name: 'Dan Abramov', number: '12-43-234345', id: 3 },
-    { name: 'Mary Poppendieck', number: '39-23-6423122', id: 4 }
-  ])
-  const handleNameChange = (event) => {
-    setNewName(event.target.value);
-  };
+  useEffect(() => {
+    personService.getAll().then(initialPersons => setPersons(initialPersons))
+  }, [])
 
-  const handleNumberChange = (event) => {
-    setNewNumber(event.target.value);
-  };
+  const handleNameChange = (e) => setNewName(e.target.value)
+  const handleNumberChange = (e) => setNewNumber(e.target.value)
+  const handleFilterChange = (e) => setFilter(e.target.value)
 
-  const handleFilterChange = (event) => {
-    setFilter(event.target.value);
-  };
+  const addPerson = (e) => {
+    e.preventDefault()
+    const existing = persons.find(p => p.name === newName)
 
-
-  const addPerson = (event) => {
-    event.preventDefault();
-    const nameExists = persons.some((person) => person.name === newName);
-
-    if (nameExists) {
-      alert(`${newName} is already added to phonebook`);
-      return;
+    if (existing) {
+      if (window.confirm(`${newName} is already added. Replace the old number?`)) {
+        const updatedPerson = { ...existing, number: newNumber }
+        personService.update(existing.id, updatedPerson)
+          .then(returned => {
+            setPersons(persons.map(p => p.id !== existing.id ? p : returned))
+            setMessage(`Updated ${returned.name}`)
+            setMessageType("success")
+            setTimeout(() => setMessage(null), 5000)
+          })
+          .catch(() => {
+            setMessage(`Information of ${existing.name} has already been removed`)
+            setMessageType("error")
+            setTimeout(() => setMessage(null), 5000)
+            setPersons(persons.filter(p => p.id !== existing.id))
+          })
+      }
+      return
     }
-    const personObject = {
-      name: newName,
-      number: newNumber,
-      id: persons.length + 1,
-    };
-    setPersons(persons.concat(personObject));
-    setNewName("");
-    setNewNumber("");
-  };
 
+    const newPerson = { name: newName, number: newNumber }
+    personService.create(newPerson)
+      .then(returned => {
+        setPersons(persons.concat(returned))
+        setMessage(`Added ${returned.name}`)
+        setMessageType("success")
+        setTimeout(() => setMessage(null), 5000)
+        setNewName("")
+        setNewNumber("")
+      })
+  }
 
-  const personsToShow = persons.filter(person =>
-    person.name.toLowerCase().includes(filter.toLowerCase())
+  const handleDelete = (id, name) => {
+    if (window.confirm(`Delete ${name}?`)) {
+      personService.remove(id)
+        .then(() => setPersons(persons.filter(p => p.id !== id)))
+    }
+  }
+
+  const personsToShow = persons.filter(p =>
+    p.name.toLowerCase().includes(filter.toLowerCase())
   )
 
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification message={message} type={messageType} />
       <Filter filter={filter} handleFilterChange={handleFilterChange} />
-      <PersonForm addPerson={addPerson} newName={newName} handleNameChange={handleNameChange} newNumber={newNumber} handleNumberChange={handleNumberChange}/>
-      <h2>Numbers</h2>
-     <Persons persons={personsToShow}/>
+      <h3>Add a new</h3>
+      <PersonForm
+        addPerson={addPerson}
+        newName={newName}
+        handleNameChange={handleNameChange}
+        newNumber={newNumber}
+        handleNumberChange={handleNumberChange}
+      />
+      <h3>Numbers</h3>
+      <Persons persons={personsToShow} handleDelete={handleDelete} />
     </div>
-  );
-};
+  )
+}
 
-export default App;
+export default App
