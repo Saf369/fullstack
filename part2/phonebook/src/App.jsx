@@ -11,6 +11,8 @@ const App = () => {
   const [newNumber, setNewNumber] = useState("")
   const [filter, setFilter] = useState("")
   const [message, setMessage] = useState(null)
+  const [errorMessage, setErrorMessage] = useState(null)
+
   const [messageType, setMessageType] = useState("success")
 
   useEffect(() => {
@@ -46,15 +48,20 @@ const App = () => {
     }
 
     const newPerson = { name: newName, number: newNumber }
-    personService.create(newPerson)
-      .then(returned => {
-        setPersons(persons.concat(returned))
-        setMessage(`Added ${returned.name}`)
-        setMessageType("success")
-        setTimeout(() => setMessage(null), 5000)
-        setNewName("")
-        setNewNumber("")
-      })
+personService
+  .create(newPerson)
+  .then(returnedPerson => {
+    setPersons(persons.concat(returnedPerson))
+    setNewName('')
+    setNewNumber('')
+  })
+  .catch(error => {
+    setErrorMessage(error.response.data.error)
+    setTimeout(() => {
+      setErrorMessage(null)
+    }, 5000)
+  })
+
   }
 
   const handleDelete = (id, name) => {
@@ -71,6 +78,8 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      {errorMessage && <div style={{ color: 'red' }}>{errorMessage}</div>}
+
       <Notification message={message} type={messageType} />
       <Filter filter={filter} handleFilterChange={handleFilterChange} />
       <h3>Add a new</h3>
