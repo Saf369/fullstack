@@ -76,23 +76,15 @@ app.delete('/api/persons/:id', (req, res, next) => {
     .catch(error => next(error))
 })
 
-app.post('/api/persons', (req, res) => {
-  const body = req.body
 
-  if (!body.name || !body.number) {
-    return res.status(400).json({
-      error: 'name or number missing'
+app.post('/api/persons', (req, res, next) => {
+  const person = new Person(req.body)
+
+  person.save()
+    .then(savedPerson => {
+      res.json(savedPerson)
     })
-  }
-
-  const person = new Person({
-    name: body.name,
-    number: body.number,
-  })
-
-  person.save().then(savedPerson => {
-    res.json(savedPerson)
-  })
+    .catch(error => next(error))
 })
 
 
