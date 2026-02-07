@@ -14,9 +14,29 @@ const initialBlogs = [
 ]
 
 // Clear DB and insert initial blogs before each test
+const bcrypt = require('bcrypt')
+const User = require('../models/user')
+const jwt = require('jsonwebtoken')
+
+let token // global variable for the test token
+
 beforeEach(async () => {
   await Blog.deleteMany({})
-  await Blog.insertMany(initialBlogs)
+  await User.deleteMany({})
+
+  // create initial user
+  const passwordHash = await bcrypt.hash('sekret', 10)
+  const user = new User({ username: 'root', name: 'Superuser', passwordHash })
+  const savedUser = await user.save()
+
+  // create initial blogs
+  const blogObjects = initialBlogs.map(blog => new Blog({ ...blog, user: savedUser._id }))
+  const promiseArray = blogObjects.map(blog => blog.save())
+  await Promise.all(promiseArray)
+
+  // generate JWT token for tests
+  const userForToken = { username: savedUser.username, id: savedUser._id }
+  token = jwt.sign(userForToken, process.env.SECRET)
 })
 
 // ========================
@@ -65,6 +85,7 @@ test('a valid blog can be added', async () => {
 
   await api
     .post('/api/blogs')
+    .set('Authorization', `Bearer ${token}`)
     .send(newBlog)
     .expect(201)
     .expect('Content-Type', /application\/json/)
@@ -89,6 +110,7 @@ test('if likes is missing, it defaults to 0', async () => {
 
   const response = await api
     .post('/api/blogs')
+    .set('Authorization', `Bearer ${token}`)
     .send(newBlog)
     .expect(201)
 
@@ -107,6 +129,7 @@ test('blog without title is rejected with 400', async () => {
 
   await api
     .post('/api/blogs')
+    .set('Authorization', `Bearer ${token}`)
     .send(newBlog)
     .expect(400)
 })
@@ -119,6 +142,7 @@ test('blog without url is rejected with 400', async () => {
 
   await api
     .post('/api/blogs')
+    .set('Authorization', `Bearer ${token}`)
     .send(newBlog)
     .expect(400)
 })
@@ -134,6 +158,7 @@ test('a blog can be deleted', async () => {
 
   await api
     .delete(`/api/blogs/${blogToDelete.id}`)
+    .set('Authorization', `Bearer ${token}`)
     .expect(204)
 
   const blogsAtEnd = await api.get('/api/blogs')
@@ -164,6 +189,41 @@ test('a blog likes can be updated', async () => {
 
   expect(response.body.likes).toBe(blogToUpdate.likes + 1)
 })
+
+test('a valid blog can be added with token', async () => {
+  const newBlog = {
+    title: 'New Blog With Token',
+    author: 'Test Author',
+    url: 'http://example.com',
+    likes: 7,
+  }
+
+  await api
+    .post('/api/blogs')
+    .set('Authorization', `Bearer ${token}`)
+    .send(newBlog)
+    .expect(201)
+    .expect('Content-Type', /application\/json/)
+
+  const blogsAtEnd = await api.get('/api/blogs')
+  const titles = blogsAtEnd.body.map(b => b.title)
+  expect(titles).toContain('New Blog With Token')
+})
+
+test('adding a blog fails with 401 if token is not provided', async () => {
+  const newBlog = {
+    title: 'No Token Blog',
+    author: 'Unauthorized',
+    url: 'http://example.com',
+    likes: 5,
+  }
+
+  await api
+    .post('/api/blogs')
+    .send(newBlog)
+    .expect(401)
+})
+
 
 
 
