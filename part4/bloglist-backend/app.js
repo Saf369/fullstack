@@ -13,6 +13,12 @@ const app = express()
 app.use(middleware.tokenExtractor)
 
 mongoose.connect(config.MONGODB_URI)
+  .then(() => {
+    console.log('connected to MongoDB')
+  })
+  .catch((error) => {
+    console.log('error connecting to MongoDB:', error.message)
+  })
 
 app.use(express.json())
 
