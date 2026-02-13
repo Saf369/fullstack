@@ -22,20 +22,15 @@ const Blog = ({ blog, updateLikes, removeBlog, user }) => {
       ? blog.user.id === user.id || blog.user.id === user.username // Check username fallback
       : blog.user === user.id);
 
-  console.log("Blog:", blog.title);
-  console.log("Logged user:", user);
-  console.log("Blog creator:", blog.user);
-  console.log("Is owner:", isOwner);
-
   return (
-    <div style={blogStyle}>
-      <div>
+    <div style={blogStyle} className="blog">
+      <div className="blogContent">
         {blog.title} {blog.author}
         <button onClick={toggleVisibility}>{visible ? "hide" : "view"}</button>
       </div>
 
       {visible && (
-        <div>
+        <div className="togglableContent">
           <div>{blog.url}</div>
 
           <div>
