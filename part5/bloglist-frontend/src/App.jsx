@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Blog from "./components/Blog";
 import BlogForm from "./components/BlogForm";
 import blogService from "./services/blogs";
 import loginService from "./services/login";
 import Togglable from "./components/Togglable";
+import "./index.css";
 
 function App() {
   const [blogs, setBlogs] = useState([]);
@@ -13,6 +14,8 @@ function App() {
 
   const [notification, setNotification] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
+
+  const blogFormRef = useRef();
 
   // Load blogs
   useEffect(() => {
@@ -97,6 +100,8 @@ function App() {
     try {
       const returnedBlog = await blogService.create(blogObject);
 
+      blogFormRef.current.toggleVisibility();
+
       // 🔥 FIX for 5.9
       setBlogs(
         blogs.concat({
@@ -165,7 +170,7 @@ function App() {
         {user.name} logged in <button onClick={handleLogout}>logout</button>
       </p>
 
-      <Togglable buttonLabel="create new blog">
+      <Togglable buttonLabel="create new blog" ref={blogFormRef}>
         <BlogForm createBlog={addBlog} />
       </Togglable>
 
